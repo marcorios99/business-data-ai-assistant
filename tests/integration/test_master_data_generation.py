@@ -1,8 +1,15 @@
 """Behavioral tests for deterministic master-data generation."""
 
+from datetime import date
+
+import pytest
+
+from scripts import generate_dataset as dataset_cli
 from scripts.create_database import connect_database, create_database
-from scripts.dataset.config import DatasetScale, get_dataset_config
+from scripts.dataset.config import DatasetScale, get_dataset_config, validate_all_configurations
 from scripts.dataset.generator import generate_master_data
+from scripts.dataset.master_data import CATEGORIES
+from scripts.dataset.patterns import SUPPLIER_PROFILES, supplier_profile
 from scripts.dataset.validation import validate_master_data
 
 
@@ -49,3 +56,81 @@ def test_demo_counts_and_master_data_invariants(tmp_path):
         assert connection.execute("SELECT COUNT(*) FROM supplier_products GROUP BY product_id HAVING SUM(is_preferred) != 1").fetchall() == []
         assert connection.execute("SELECT COUNT(*) FROM products WHERE base_cost_cents >= base_price_cents").fetchone()[0] == 0
         assert connection.execute("PRAGMA foreign_key_check").fetchall() == []
+
+
+def test_all_scales_have_sufficient_static_vocabulary():
+    validate_all_configurations()
+
+
+def test_master_dates_do_not_exceed_dataset_end_date(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_demo(path)
+    end_date = get_dataset_config("demo").dataset_end_date
+    with connect_database(path) as connection:
+        for table, column in (("stores", "opened_on"), ("employees", "hire_date"), ("customers", "registration_date")):
+            latest = connection.execute(f"SELECT MAX({column}) FROM {table}").fetchone()[0]
+            assert date.fromisoformat(latest) <= end_date
+
+
+def test_every_store_has_a_manager(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_demo(path)
+    with connect_database(path) as connection:
+        stores_without_manager = connection.execute(
+            "SELECT s.store_id FROM stores s LEFT JOIN employees e "
+            "ON e.store_id = s.store_id AND e.position = 'Store Manager' "
+            "WHERE e.employee_id IS NULL"
+        ).fetchall()
+    assert stores_without_manager == []
+
+
+def test_demo_categories_include_each_product_type(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_demo(path)
+    with connect_database(path) as connection:
+        for category_id, (_, product_types, _) in enumerate(CATEGORIES[:10], 1):
+            names = [row[0] for row in connection.execute("SELECT name FROM products WHERE category_id = ?", (category_id,))]
+            for product_type in product_types:
+                assert any(f" {product_type} Series " in name for name in names)
+
+
+def test_supplier_profile_ranges_are_consistent(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_demo(path)
+    with connect_database(path) as connection:
+        relationships = connection.execute(
+            "SELECT supplier_id, lead_time_days FROM supplier_products"
+        ).fetchall()
+    for supplier_id, lead_time_days in relationships:
+        _, lead_time_range = SUPPLIER_PROFILES[supplier_profile(supplier_id)]
+        assert lead_time_range[0] <= lead_time_days <= lead_time_range[1]
+
+    with connect_database(path) as connection:
+        cost_rows = connection.execute(
+            "SELECT sp.supplier_id, sp.unit_cost_cents, p.base_cost_cents "
+            "FROM supplier_products sp JOIN products p ON p.product_id = sp.product_id"
+        ).fetchall()
+    profile_costs = {profile: [] for profile in SUPPLIER_PROFILES}
+    for supplier_id, unit_cost, base_cost in cost_rows:
+        profile_costs[supplier_profile(supplier_id)].append(unit_cost / base_cost)
+    averages = {profile: sum(costs) / len(costs) for profile, costs in profile_costs.items()}
+    assert averages["VALUE"] < averages["BALANCED"] < averages["FAST"]
+
+
+def test_business_customers_receive_business_names(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_demo(path)
+    with connect_database(path) as connection:
+        names = connection.execute("SELECT name FROM customers WHERE segment_id > 1").fetchall()
+    assert names
+    assert all("SAC" in name for (name,) in names)
+
+
+def test_failed_validation_removes_new_dataset_file(tmp_path, monkeypatch):
+    path = tmp_path / "invalid.sqlite"
+    monkeypatch.setattr(dataset_cli, "validate_master_data", lambda *_: (_ for _ in ()).throw(ValueError("invalid")))
+
+    with pytest.raises(ValueError, match="invalid"):
+        dataset_cli.generate_dataset(path, "demo", 2026)
+
+    assert not path.exists()

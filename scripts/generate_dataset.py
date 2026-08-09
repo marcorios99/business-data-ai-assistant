@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 from pathlib import Path
 
@@ -10,7 +11,7 @@ if __package__ is None:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.create_database import DEFAULT_DATABASE_PATH, connect_database, create_database
-from scripts.dataset.config import DatasetScale, get_dataset_config
+from scripts.dataset.config import DatasetScale, get_dataset_config, validate_config_capacity
 from scripts.dataset.generator import generate_master_data
 from scripts.dataset.validation import validate_master_data
 
@@ -27,10 +28,23 @@ def parse_arguments() -> argparse.Namespace:
 def generate_dataset(path: Path, scale: DatasetScale | str, seed: int, *, force: bool = False) -> tuple[dict[str, int], list[str]]:
     """Create a database, populate master data, and validate it."""
     config = get_dataset_config(scale)
+    validate_config_capacity(config)
     database_path = create_database(path, force=force)
-    with connect_database(database_path) as connection:
-        summary = generate_master_data(connection, config, seed)
-        validation_results = validate_master_data(connection, config)
+    try:
+        connection = connect_database(database_path)
+        try:
+            summary = generate_master_data(connection, config, seed)
+            validation_results = validate_master_data(connection, config)
+            connection.commit()
+        except (OSError, RuntimeError, ValueError, sqlite3.Error):
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+    except (OSError, RuntimeError, ValueError, sqlite3.Error):
+        if database_path.exists():
+            database_path.unlink()
+        raise
     return summary, validation_results
 
 

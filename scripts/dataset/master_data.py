@@ -35,11 +35,15 @@ BRAND_NAMES = (
     "Kora", "Lyra", "Monarch", "Nimble", "Oasis", "Pinnacle", "Quartz", "Radial", "Sierra", "Talon",
     "Umbra", "Verde", "Warden", "Xenon", "Yara", "Zafiro", "Atria", "Brava", "Cenit", "Delta",
     "Eon", "Faro", "Gala", "Horizon", "Indigo", "Jade", "Karma", "Lumen", "Mistral", "Norte",
+    "Optima", "Pulsar", "Radian", "Senda", "Triton", "Unison", "Vigor", "Wavelength", "Xira", "Zonda",
 )
 FIRST_NAMES = ("Ana", "Luis", "Maria", "Diego", "Sofia", "Carlos", "Valeria", "Jorge", "Camila", "Mateo")
 LAST_NAMES = ("Quispe", "Flores", "Rojas", "Garcia", "Huaman", "Torres", "Vega", "Paredes", "Salazar", "Mendoza")
 SUPPLIER_PREFIXES = ("Andes", "Pacifico", "Inka", "Cordillera", "Sur", "Norte", "Altura", "Cumbre")
 SUPPLIER_SUFFIXES = ("Distribuciones", "Comercial", "Abastecimiento", "Importaciones", "Supply")
+BUSINESS_PREFIXES = ("Andes", "Grupo Boreal", "Soluciones Vertice", "Pacifico", "Inka", "Cumbre")
+BUSINESS_CORES = ("Digital", "Comercial", "Tecnologica", "Logistica", "Integral", "Corporativa")
+BUSINESS_SUFFIXES = ("SAC", "Comercial SAC", "Distribuciones SAC")
 CUSTOMER_SEGMENTS = (
     (1, "CONSUMER", "Consumer", "Individual retail customers."),
     (2, "SMALL_BUSINESS", "Small Business", "Small and medium business customers."),
