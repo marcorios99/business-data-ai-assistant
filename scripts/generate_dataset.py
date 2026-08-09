@@ -16,7 +16,13 @@ from scripts.dataset.config import DatasetScale, get_dataset_config, validate_co
 from scripts.dataset.generator import generate_master_data
 from scripts.dataset.inventory import generate_initial_inventory, rebuild_inventory
 from scripts.dataset.procurement import generate_purchase_orders
-from scripts.dataset.validation import validate_master_data, validate_procurement_and_inventory
+from scripts.dataset.promotions import generate_promotions
+from scripts.dataset.sales import generate_sales
+from scripts.dataset.validation import (
+    validate_master_data,
+    validate_procurement_and_inventory,
+    validate_sales,
+)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -42,11 +48,11 @@ def generate_dataset(path: Path, scale: DatasetScale | str, seed: int, *, force:
             purchase_orders, purchase_items, purchase_movements = generate_purchase_orders(
                 connection, config, random_source, initial_movements + 1
             )
+            promotion_count = generate_promotions(connection, config, random_source)
+            sales_summary = generate_sales(connection, config, random_source)
             inventory_positions = rebuild_inventory(connection)
-            summary.update({"purchase_orders": purchase_orders, "purchase_items": purchase_items, "initial_movements": initial_movements, "purchase_movements": purchase_movements, "inventory_positions": inventory_positions})
-            validation_results = validate_master_data(connection, config) + validate_procurement_and_inventory(
-                connection, config
-            )
+            summary.update({"purchase_orders": purchase_orders, "purchase_items": purchase_items, "initial_movements": initial_movements, "purchase_movements": purchase_movements, "promotions": promotion_count, "inventory_positions": inventory_positions, **sales_summary})
+            validation_results = validate_master_data(connection, config) + validate_procurement_and_inventory(connection, config) + validate_sales(connection, config)
             connection.commit()
         except (OSError, RuntimeError, ValueError, sqlite3.Error):
             connection.rollback()
@@ -70,7 +76,7 @@ def main() -> None:
     print(f"Path: {arguments.path.resolve()}\nScale: {arguments.scale}\nSeed: {arguments.seed}\n")
     print("Master data")
     for name, count in summary.items():
-        if name in {"purchase_orders", "purchase_items", "initial_movements", "purchase_movements", "inventory_positions"}:
+        if name in {"purchase_orders", "purchase_items", "initial_movements", "purchase_movements", "inventory_positions", "promotions", "sales_orders", "sales_items", "payments", "sale_movements", "promoted_items"}:
             continue
         print(f"{name.replace('_', ' ').title():<20} {count:>6,}")
     print("\nProcurement")
@@ -80,6 +86,9 @@ def main() -> None:
     print(f"{'Initial movements':<20} {summary['initial_movements']:>6,}")
     print(f"{'Purchase movements':<20} {summary['purchase_movements']:>6,}")
     print(f"{'Inventory positions':<20} {summary['inventory_positions']:>6,}")
+    print("\nSales")
+    for name in ("promotions", "sales_orders", "sales_items", "payments", "promoted_items", "sale_movements"):
+        print(f"{name.replace('_', ' ').title():<20} {summary[name]:>6,}")
     print("\nValidation")
     for result in validation_results:
         print(f"OK {result}")

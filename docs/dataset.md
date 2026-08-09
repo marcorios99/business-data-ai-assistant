@@ -20,6 +20,12 @@ valida antes de confirmar la generación. Cada tienda recibe un Store Manager; l
 proveedores mantienen perfiles consistentes de costo y lead time, y los clientes
 empresariales reciben nombres ficticios de empresa.
 
+Las ventas se simulan cronológicamente contra los movimientos de entrada disponibles. Una
+línea vendida crea un movimiento `SALE` negativo desde un almacén con stock; no se permite
+saldo histórico negativo. Las promociones aplican descuentos por porcentaje o por importe
+fijo a la línea (el fijo se aplica una vez por línea). Subtotal menos descuento recibe IGV
+de 18 %. El costo histórico es una aproximación del costo base; todavía no se modela FIFO.
+
 También se generan órdenes de compra históricas, sus líneas y recepciones. Cada posición
 de apertura se registra primero como un movimiento `INITIAL`; las cantidades recibidas se
 registran como movimientos `PURCHASE` enlazados a la línea de compra. `inventory` es una

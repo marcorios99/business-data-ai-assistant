@@ -1,11 +1,13 @@
 """Behavioral tests for deterministic master-data generation."""
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
 
 from scripts import generate_dataset as dataset_cli
 from scripts.create_database import connect_database, create_database
+from scripts.dataset import config as dataset_config
 from scripts.dataset.config import DatasetScale, get_dataset_config, validate_all_configurations
 from scripts.dataset.generator import generate_master_data
 from scripts.dataset.master_data import CATEGORIES
@@ -141,7 +143,12 @@ def test_failed_validation_removes_new_dataset_file(tmp_path, monkeypatch):
 
 
 def generate_procurement_demo(path, seed=2026):
-    return dataset_cli.generate_dataset(path, "demo", seed)
+    original = dataset_config.CONFIGURATIONS[DatasetScale.DEMO]
+    dataset_config.CONFIGURATIONS[DatasetScale.DEMO] = replace(original, sales_orders=200)
+    try:
+        return dataset_cli.generate_dataset(path, "demo", seed)
+    finally:
+        dataset_config.CONFIGURATIONS[DatasetScale.DEMO] = original
 
 
 def test_demo_generation_includes_procurement_and_inventory(tmp_path):
@@ -194,3 +201,14 @@ def test_inventory_ledger_corruption_is_detected(tmp_path):
         connection.execute("UPDATE inventory SET quantity_on_hand = quantity_on_hand + 1 WHERE rowid = 1")
         with pytest.raises(DatasetValidationError, match="Inventory projection"):
             validate_procurement_and_inventory(connection)
+
+
+def test_sales_payments_promotions_and_ledger_are_valid(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    summary, _ = generate_procurement_demo(path)
+    assert summary["sales_orders"] == 200
+    assert summary["payments"] == summary["sales_orders"]
+    with connect_database(path) as connection:
+        assert connection.execute("SELECT COUNT(*) FROM sales_orders so JOIN employees e ON e.employee_id = so.seller_id WHERE e.store_id != so.store_id").fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM sales_order_items WHERE promotion_id IS NOT NULL").fetchone()[0] > 0
+        assert connection.execute("SELECT COUNT(*) FROM inventory WHERE quantity_on_hand < 0").fetchone()[0] == 0

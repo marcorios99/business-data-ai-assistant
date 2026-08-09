@@ -72,3 +72,22 @@ def validate_procurement_and_inventory(
     ):
         raise DatasetValidationError("Purchase dates exceed the dataset period.")
     return ["Purchase orders valid", "Procurement totals reconcile", "Inventory ledger reconciles"]
+
+
+def validate_sales(connection: sqlite3.Connection, config: DatasetConfig) -> list[str]:
+    """Validate sales, payments, promotions, and historical inventory balances."""
+    checks = (
+        ("SELECT COUNT(*) FROM sales_orders so JOIN employees e ON e.employee_id = so.seller_id WHERE e.store_id != so.store_id", "Sales sellers must belong to their store."),
+        ("SELECT COUNT(*) FROM sales_orders WHERE subtotal_cents - discount_cents + tax_cents != total_cents OR tax_cents != (((subtotal_cents - discount_cents) * 18 + 50) / 100)", "Sales totals do not reconcile."),
+        ("SELECT COUNT(*) FROM sales_order_items soi JOIN sales_orders so ON so.order_id = soi.order_id WHERE soi.promotion_id IS NOT NULL AND (so.order_date NOT BETWEEN (SELECT start_date FROM promotions p WHERE p.promotion_id = soi.promotion_id) AND (SELECT end_date FROM promotions p WHERE p.promotion_id = soi.promotion_id))", "Promotion dates are invalid."),
+        ("SELECT COUNT(*) FROM sales_order_items soi JOIN promotions p ON p.promotion_id = soi.promotion_id WHERE (p.promotion_type = 'PERCENTAGE' AND soi.discount_cents != (soi.quantity * soi.unit_price_cents * CAST(p.discount_percent AS INTEGER) / 100)) OR (p.promotion_type = 'FIXED_AMOUNT' AND soi.discount_cents != MIN(soi.quantity * soi.unit_price_cents, p.discount_amount_cents))", "Promotion discounts are invalid."),
+        ("SELECT COUNT(*) FROM sales_order_items soi WHERE soi.quantity != -COALESCE((SELECT SUM(im.quantity_delta) FROM inventory_movements im WHERE im.movement_type = 'SALE' AND im.reference_id = soi.order_item_id), 0)", "Sale movements do not match items."),
+        ("SELECT COUNT(*) FROM sales_orders so WHERE so.status = 'COMPLETED' AND so.total_cents != COALESCE((SELECT SUM(p.amount_cents) FROM payments p WHERE p.order_id = so.order_id AND p.status = 'SUCCESS'), 0)", "Payments do not reconcile."),
+    )
+    for query, message in checks:
+        if _scalar(connection, query): raise DatasetValidationError(message)
+    balances = {}
+    for warehouse_id, product_id, delta in connection.execute("SELECT warehouse_id, product_id, quantity_delta FROM inventory_movements ORDER BY occurred_at, movement_id"):
+        key = (warehouse_id, product_id); balances[key] = balances.get(key, 0) + delta
+        if balances[key] < 0: raise DatasetValidationError("Inventory became negative historically.")
+    return ["Sales totals and payments reconcile", "Promotions valid", "Historical inventory never negative"]
