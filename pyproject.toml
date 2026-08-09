@@ -1,9 +1,42 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "business-data-ai-assistant"
 version = "0.1.0"
-description = "Local semantic analytics over relational business data using a small local LLM and deterministic SQL generation."
-requires-python = ">=3.11"
-dependencies = []
+description = "Local semantic analytics engine for natural-language querying of relational business data."
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+
+dependencies = [
+    "fastapi[standard-no-fastapi-cloud-cli]",
+    "pydantic>=2",
+    "pydantic-settings",
+    "sqlalchemy>=2",
+    "httpx",
+    "pyyaml",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+exclude = ["tests*", "scripts*"]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"

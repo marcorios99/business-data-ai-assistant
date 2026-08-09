@@ -1,2 +1,0 @@
--- Planned tables: sales_orders, sales_order_items, payments.
--- DDL intentionally pending.
