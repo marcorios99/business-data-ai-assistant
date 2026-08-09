@@ -1,0 +1,2 @@
+-- Planned table: sales_targets.
+-- DDL intentionally pending.

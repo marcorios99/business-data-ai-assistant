@@ -1,0 +1,3 @@
+-- Planned tables: promotions, promotion_products.
+-- Promotions represent time-bounded commercial campaigns applied to selected products.
+-- DDL intentionally pending.

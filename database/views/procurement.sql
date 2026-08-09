@@ -1,0 +1,1 @@
+-- Planned analytical procurement views. Definitions intentionally pending.

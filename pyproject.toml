@@ -1,0 +1,9 @@
+[project]
+name = "business-data-ai-assistant"
+version = "0.1.0"
+description = "Local semantic analytics over relational business data using a small local LLM and deterministic SQL generation."
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

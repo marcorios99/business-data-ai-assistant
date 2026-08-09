@@ -1,0 +1,1 @@
+-- Planned analytical inventory views. Definitions intentionally pending.

@@ -1,0 +1,2 @@
+-- Planned tables: inventory, inventory_movements.
+-- DDL intentionally pending.

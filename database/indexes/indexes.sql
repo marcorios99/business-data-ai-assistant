@@ -1,0 +1,2 @@
+-- Performance indexes for the reference SQLite dataset.
+-- Definitions intentionally pending until query patterns are known.

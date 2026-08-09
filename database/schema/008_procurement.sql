@@ -1,0 +1,2 @@
+-- Planned tables: purchase_orders, purchase_order_items.
+-- DDL intentionally pending.

@@ -1,0 +1,2 @@
+-- Planned tables: suppliers, supplier_products.
+-- DDL intentionally pending.

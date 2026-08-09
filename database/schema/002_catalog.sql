@@ -1,0 +1,2 @@
+-- Planned tables: categories, brands, products.
+-- DDL intentionally pending.

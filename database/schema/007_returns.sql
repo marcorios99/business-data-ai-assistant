@@ -1,0 +1,2 @@
+-- Planned tables: returns, return_items.
+-- DDL intentionally pending.

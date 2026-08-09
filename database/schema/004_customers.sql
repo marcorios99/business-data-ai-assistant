@@ -1,0 +1,2 @@
+-- Planned tables: customer_segments, customers.
+-- DDL intentionally pending.

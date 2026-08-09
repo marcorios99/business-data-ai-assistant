@@ -1,0 +1,2 @@
+-- Planned tables: stores, warehouses, employees.
+-- DDL intentionally pending.
