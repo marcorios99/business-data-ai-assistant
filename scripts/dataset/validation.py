@@ -41,3 +41,34 @@ def validate_master_data(connection: sqlite3.Connection, config: DatasetConfig) 
         if _scalar(connection, f"SELECT COUNT(*) FROM (SELECT {column} FROM {table} GROUP BY {column} HAVING COUNT(*) > 1)"):
             raise DatasetValidationError(f"Duplicate values found for {table_column}.")
     return ["Foreign keys valid", "Product pricing valid", "Every product has suppliers", "Preferred supplier assignments valid", "Customer segments valid"]
+
+
+def validate_procurement_and_inventory(
+    connection: sqlite3.Connection, config: DatasetConfig | None = None
+) -> list[str]:
+    """Validate purchase, receipt, ledger, and inventory-projection invariants."""
+    checks = (
+        ("SELECT COUNT(*) FROM purchase_order_items WHERE quantity_ordered <= 0 OR quantity_received < 0 OR quantity_received > quantity_ordered", "Purchase quantities are invalid."),
+        ("SELECT COUNT(*) FROM purchase_orders WHERE total_cents != subtotal_cents + tax_cents", "Purchase totals do not reconcile."),
+        ("SELECT COUNT(*) FROM purchase_orders po WHERE po.subtotal_cents != (SELECT COALESCE(SUM(poi.quantity_ordered * poi.unit_cost_cents), 0) FROM purchase_order_items poi WHERE poi.purchase_order_id = po.purchase_order_id) OR po.tax_cents != ((po.subtotal_cents * 18 + 50) / 100)", "Purchase line totals do not reconcile."),
+        ("SELECT COUNT(*) FROM purchase_orders WHERE expected_date < order_date OR (received_date IS NOT NULL AND received_date < order_date)", "Purchase dates are incoherent."),
+        ("SELECT COUNT(*) FROM purchase_orders po WHERE po.status = 'RECEIVED' AND (po.received_date IS NULL OR EXISTS (SELECT 1 FROM purchase_order_items poi WHERE poi.purchase_order_id = po.purchase_order_id AND poi.quantity_received != poi.quantity_ordered))", "Received orders are inconsistent."),
+        ("SELECT COUNT(*) FROM purchase_orders po WHERE po.status = 'OPEN' AND (po.received_date IS NOT NULL OR EXISTS (SELECT 1 FROM purchase_order_items poi WHERE poi.purchase_order_id = po.purchase_order_id AND poi.quantity_received != 0))", "Open orders are inconsistent."),
+        ("SELECT COUNT(*) FROM purchase_orders po WHERE po.status = 'PARTIALLY_RECEIVED' AND (po.received_date IS NULL OR EXISTS (SELECT 1 FROM purchase_order_items poi WHERE poi.purchase_order_id = po.purchase_order_id AND NOT (poi.quantity_received > 0 AND poi.quantity_received < poi.quantity_ordered)))", "Partially received orders are inconsistent."),
+        ("SELECT COUNT(*) FROM purchase_order_items poi JOIN purchase_orders po ON po.purchase_order_id = poi.purchase_order_id LEFT JOIN supplier_products sp ON sp.supplier_id = po.supplier_id AND sp.product_id = poi.product_id WHERE sp.product_id IS NULL", "Purchase item supplier mappings are invalid."),
+        ("SELECT COUNT(*) FROM inventory_movements WHERE movement_type IN ('INITIAL', 'PURCHASE') AND quantity_delta <= 0", "Opening or purchase movements must be positive."),
+        ("SELECT COUNT(*) FROM inventory_movements im LEFT JOIN purchase_order_items poi ON poi.purchase_order_item_id = im.reference_id WHERE im.movement_type = 'PURCHASE' AND (im.reference_type != 'PURCHASE_ORDER_ITEM' OR poi.purchase_order_item_id IS NULL)", "Purchase movement references are invalid."),
+        ("SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.quantity_received != COALESCE((SELECT SUM(im.quantity_delta) FROM inventory_movements im WHERE im.movement_type = 'PURCHASE' AND im.reference_id = poi.purchase_order_item_id), 0)", "Purchase receipts do not match ledger movements."),
+        ("SELECT COUNT(*) FROM inventory i WHERE i.quantity_on_hand != (SELECT SUM(im.quantity_delta) FROM inventory_movements im WHERE im.warehouse_id = i.warehouse_id AND im.product_id = i.product_id) OR i.quantity_reserved != 0", "Inventory projection does not reconcile with its ledger."),
+        ("SELECT COUNT(*) FROM inventory i WHERE NOT EXISTS (SELECT 1 FROM inventory_movements im WHERE im.warehouse_id = i.warehouse_id AND im.product_id = i.product_id)", "Inventory positions require ledger movements."),
+        ("SELECT COUNT(*) FROM products p WHERE NOT EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.product_id AND im.movement_type = 'INITIAL')", "Every product requires initial stock."),
+    )
+    for query, message in checks:
+        if _scalar(connection, query):
+            raise DatasetValidationError(message)
+    if config is not None and _scalar(
+        connection,
+        f"SELECT COUNT(*) FROM purchase_orders WHERE order_date > '{config.dataset_end_date.isoformat()}' OR expected_date > '{config.dataset_end_date.isoformat()}' OR received_date > '{config.dataset_end_date.isoformat()}'",
+    ):
+        raise DatasetValidationError("Purchase dates exceed the dataset period.")
+    return ["Purchase orders valid", "Procurement totals reconcile", "Inventory ledger reconciles"]

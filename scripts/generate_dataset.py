@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import random
 import sqlite3
 import sys
 from pathlib import Path
@@ -13,7 +14,9 @@ if __package__ is None:
 from scripts.create_database import DEFAULT_DATABASE_PATH, connect_database, create_database
 from scripts.dataset.config import DatasetScale, get_dataset_config, validate_config_capacity
 from scripts.dataset.generator import generate_master_data
-from scripts.dataset.validation import validate_master_data
+from scripts.dataset.inventory import generate_initial_inventory, rebuild_inventory
+from scripts.dataset.procurement import generate_purchase_orders
+from scripts.dataset.validation import validate_master_data, validate_procurement_and_inventory
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -34,7 +37,16 @@ def generate_dataset(path: Path, scale: DatasetScale | str, seed: int, *, force:
         connection = connect_database(database_path)
         try:
             summary = generate_master_data(connection, config, seed)
-            validation_results = validate_master_data(connection, config)
+            random_source = random.Random(seed + 1)
+            initial_movements = generate_initial_inventory(connection, config, random_source)
+            purchase_orders, purchase_items, purchase_movements = generate_purchase_orders(
+                connection, config, random_source, initial_movements + 1
+            )
+            inventory_positions = rebuild_inventory(connection)
+            summary.update({"purchase_orders": purchase_orders, "purchase_items": purchase_items, "initial_movements": initial_movements, "purchase_movements": purchase_movements, "inventory_positions": inventory_positions})
+            validation_results = validate_master_data(connection, config) + validate_procurement_and_inventory(
+                connection, config
+            )
             connection.commit()
         except (OSError, RuntimeError, ValueError, sqlite3.Error):
             connection.rollback()
@@ -58,7 +70,16 @@ def main() -> None:
     print(f"Path: {arguments.path.resolve()}\nScale: {arguments.scale}\nSeed: {arguments.seed}\n")
     print("Master data")
     for name, count in summary.items():
+        if name in {"purchase_orders", "purchase_items", "initial_movements", "purchase_movements", "inventory_positions"}:
+            continue
         print(f"{name.replace('_', ' ').title():<20} {count:>6,}")
+    print("\nProcurement")
+    print(f"{'Purchase orders':<20} {summary['purchase_orders']:>6,}")
+    print(f"{'Purchase items':<20} {summary['purchase_items']:>6,}")
+    print("\nInventory")
+    print(f"{'Initial movements':<20} {summary['initial_movements']:>6,}")
+    print(f"{'Purchase movements':<20} {summary['purchase_movements']:>6,}")
+    print(f"{'Inventory positions':<20} {summary['inventory_positions']:>6,}")
     print("\nValidation")
     for result in validation_results:
         print(f"OK {result}")

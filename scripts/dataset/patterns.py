@@ -10,6 +10,13 @@ SUPPLIER_PROFILES = {
 }
 
 
+def stock_quantity(price_cents: int, *, central: bool, random_source) -> int:
+    """Choose an opening quantity inversely related to product price."""
+    baseline = max(3, 120_000 // max(price_cents, 1))
+    multiplier = random_source.randint(3, 6) if central else random_source.randint(1, 3)
+    return max(2, baseline * multiplier)
+
+
 def weighted_role(random_source):
     """Choose an employee role from the configured weights."""
     roles, weights = zip(*EMPLOYEE_ROLES, strict=True)

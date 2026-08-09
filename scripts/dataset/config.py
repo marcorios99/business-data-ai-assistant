@@ -24,16 +24,19 @@ class DatasetConfig:
     products: int
     suppliers: int
     customers: int
+    purchase_orders: int
     dataset_start_date: date = date(2024, 1, 1)
     dataset_end_date: date = date(2026, 7, 31)
 
 
 CONFIGURATIONS = {
-    DatasetScale.DEMO: DatasetConfig(DatasetScale.DEMO, 8, 4, 40, 10, 20, 150, 30, 2_000),
+    DatasetScale.DEMO: DatasetConfig(DatasetScale.DEMO, 8, 4, 40, 10, 20, 150, 30, 2_000, 500),
     DatasetScale.PORTFOLIO: DatasetConfig(
-        DatasetScale.PORTFOLIO, 20, 6, 120, 12, 40, 500, 60, 10_000
+        DatasetScale.PORTFOLIO, 20, 6, 120, 12, 40, 500, 60, 10_000, 4_000
     ),
-    DatasetScale.STRESS: DatasetConfig(DatasetScale.STRESS, 35, 10, 250, 15, 70, 1_000, 120, 50_000),
+    DatasetScale.STRESS: DatasetConfig(
+        DatasetScale.STRESS, 35, 10, 250, 15, 70, 1_000, 120, 50_000, 20_000
+    ),
 }
 
 

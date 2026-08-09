@@ -10,7 +10,11 @@ from scripts.dataset.config import DatasetScale, get_dataset_config, validate_al
 from scripts.dataset.generator import generate_master_data
 from scripts.dataset.master_data import CATEGORIES
 from scripts.dataset.patterns import SUPPLIER_PROFILES, supplier_profile
-from scripts.dataset.validation import validate_master_data
+from scripts.dataset.validation import (
+    DatasetValidationError,
+    validate_master_data,
+    validate_procurement_and_inventory,
+)
 
 
 def generate_demo(path, seed=2026):
@@ -134,3 +138,59 @@ def test_failed_validation_removes_new_dataset_file(tmp_path, monkeypatch):
         dataset_cli.generate_dataset(path, "demo", 2026)
 
     assert not path.exists()
+
+
+def generate_procurement_demo(path, seed=2026):
+    return dataset_cli.generate_dataset(path, "demo", seed)
+
+
+def test_demo_generation_includes_procurement_and_inventory(tmp_path):
+    summary, validation_results = generate_procurement_demo(tmp_path / "demo.sqlite")
+    assert summary["purchase_orders"] == get_dataset_config("demo").purchase_orders
+    assert summary["purchase_items"] >= summary["purchase_orders"] * 3
+    assert summary["initial_movements"] >= summary["products"]
+    assert "Inventory ledger reconciles" in validation_results
+
+
+def test_procurement_and_inventory_are_deterministic_by_seed(tmp_path):
+    first, second = tmp_path / "first.sqlite", tmp_path / "second.sqlite"
+    generate_procurement_demo(first, 2026)
+    generate_procurement_demo(second, 2026)
+    tables = ("purchase_orders", "purchase_order_items", "inventory_movements", "inventory")
+    with connect_database(first) as first_connection, connect_database(second) as second_connection:
+        for table in tables:
+            assert first_connection.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall() == second_connection.execute(f"SELECT * FROM {table} ORDER BY 1, 2").fetchall()
+
+
+def test_every_product_has_initial_stock_and_inventory_reconciles(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_procurement_demo(path)
+    with connect_database(path) as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM products p WHERE NOT EXISTS (SELECT 1 FROM inventory_movements im WHERE im.product_id = p.product_id AND im.movement_type = 'INITIAL')"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM inventory i WHERE i.quantity_on_hand != (SELECT SUM(quantity_delta) FROM inventory_movements im WHERE im.warehouse_id = i.warehouse_id AND im.product_id = i.product_id)"
+        ).fetchone()[0] == 0
+
+
+def test_purchase_receipts_match_suppliers_quantities_and_order_totals(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_procurement_demo(path)
+    with connect_database(path) as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM purchase_order_items poi JOIN purchase_orders po ON po.purchase_order_id = poi.purchase_order_id LEFT JOIN supplier_products sp ON sp.supplier_id = po.supplier_id AND sp.product_id = poi.product_id WHERE sp.product_id IS NULL"
+        ).fetchone()[0] == 0
+        assert connection.execute(
+            "SELECT COUNT(*) FROM purchase_order_items poi WHERE poi.quantity_received != COALESCE((SELECT SUM(quantity_delta) FROM inventory_movements im WHERE im.movement_type = 'PURCHASE' AND im.reference_id = poi.purchase_order_item_id), 0)"
+        ).fetchone()[0] == 0
+        assert connection.execute("SELECT COUNT(*) FROM purchase_orders WHERE total_cents != subtotal_cents + tax_cents").fetchone()[0] == 0
+
+
+def test_inventory_ledger_corruption_is_detected(tmp_path):
+    path = tmp_path / "demo.sqlite"
+    generate_procurement_demo(path)
+    with connect_database(path) as connection:
+        connection.execute("UPDATE inventory SET quantity_on_hand = quantity_on_hand + 1 WHERE rowid = 1")
+        with pytest.raises(DatasetValidationError, match="Inventory projection"):
+            validate_procurement_and_inventory(connection)

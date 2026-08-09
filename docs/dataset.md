@@ -20,5 +20,12 @@ valida antes de confirmar la generación. Cada tienda recibe un Store Manager; l
 proveedores mantienen perfiles consistentes de costo y lead time, y los clientes
 empresariales reciben nombres ficticios de empresa.
 
-Ventas, pagos, promociones aplicadas, compras, inventario, devoluciones, objetivos y
-patrones temporales llegarán en hitos posteriores.
+También se generan órdenes de compra históricas, sus líneas y recepciones. Cada posición
+de apertura se registra primero como un movimiento `INITIAL`; las cantidades recibidas se
+registran como movimientos `PURCHASE` enlazados a la línea de compra. `inventory` es una
+proyección reconstruida desde ese ledger, nunca una cantidad independiente. Los totales de
+compra usan subtotal antes de IGV y 18 % de IGV calculado en céntimos.
+
+Todavía no existen ventas, pagos, promociones aplicadas, devoluciones, objetivos ni
+movimientos de salida. Por ello el inventario de este estado intermedio puede crecer con
+las compras; la simulación cronológica completa llegará en los siguientes hitos.
