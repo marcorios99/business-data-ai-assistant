@@ -2,7 +2,8 @@ CREATE TABLE IF NOT EXISTS inventory (
     warehouse_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
     quantity_on_hand INTEGER NOT NULL CHECK (quantity_on_hand >= 0),
-    quantity_reserved INTEGER NOT NULL DEFAULT 0 CHECK (quantity_reserved >= 0),
+    quantity_reserved INTEGER NOT NULL DEFAULT 0
+        CHECK (quantity_reserved >= 0 AND quantity_reserved <= quantity_on_hand),
     reorder_point INTEGER NOT NULL DEFAULT 0 CHECK (reorder_point >= 0),
     updated_at TEXT NOT NULL,
     PRIMARY KEY (warehouse_id, product_id),

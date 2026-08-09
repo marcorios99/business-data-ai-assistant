@@ -26,24 +26,32 @@ def schema_files() -> list[Path]:
 def create_database(path: Path = DEFAULT_DATABASE_PATH, *, force: bool = False) -> Path:
     """Create an empty database, refusing to replace an existing one by default."""
     path = path.resolve()
+    created_for_attempt = not path.exists()
     if path.exists():
         if not force:
             raise FileExistsError(f"Database already exists: {path}. Use --force to recreate it.")
         path.unlink()
+        created_for_attempt = True
 
     path.parent.mkdir(parents=True, exist_ok=True)
     scripts = schema_files()
     if not scripts:
         raise FileNotFoundError(f"No schema files found in {SCHEMA_DIRECTORY}")
 
-    connection = connect_database(path)
+    connection: sqlite3.Connection | None = None
     try:
+        connection = connect_database(path)
         schema_sql = "\n".join(script.read_text(encoding="utf-8") for script in scripts)
         connection.executescript(f"BEGIN;\n{schema_sql}\nCOMMIT;")
-    except sqlite3.Error as error:
-        connection.rollback()
+    except (OSError, sqlite3.Error) as error:
+        if connection is not None:
+            connection.rollback()
+            connection.close()
+        if created_for_attempt and path.exists():
+            path.unlink()
         raise RuntimeError(f"Failed to create database from schema: {error}") from error
-    finally:
+    else:
+        assert connection is not None
         connection.close()
     return path
 

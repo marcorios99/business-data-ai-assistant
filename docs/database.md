@@ -25,6 +25,10 @@ para elegir otra ubicación.
 Las 22 tablas están vacías al crearse. Los importes monetarios se almacenan en
 céntimos como enteros, para evitar imprecisión de punto flotante.
 
+Las fechas se almacenan como texto ISO 8601: `YYYY-MM-DD` para fechas y timestamps ISO
+8601 cuando corresponde. Esta representacion mantiene consistentes las comparaciones de
+fechas realizadas sobre columnas `TEXT`.
+
 ## Relaciones principales
 
 Las tiendas agrupan empleados y pueden asociarse opcionalmente a almacenes. Productos

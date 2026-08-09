@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS sales_order_items (
     discount_cents INTEGER NOT NULL DEFAULT 0 CHECK (discount_cents >= 0),
     FOREIGN KEY (order_id) REFERENCES sales_orders(order_id),
     FOREIGN KEY (product_id) REFERENCES products(product_id),
-    FOREIGN KEY (promotion_id) REFERENCES promotions(promotion_id)
+    FOREIGN KEY (promotion_id) REFERENCES promotions(promotion_id),
+    FOREIGN KEY (promotion_id, product_id) REFERENCES promotion_products(promotion_id, product_id)
 );
 
 CREATE TABLE IF NOT EXISTS payments (
