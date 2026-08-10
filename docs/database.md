@@ -1,13 +1,15 @@
 # Base de datos de referencia
 
-SQLite es la implementación de referencia para la base operacional local: no requiere
-servidor, permite crear una base reproducible con la biblioteca estándar de Python y
-mantiene la integridad referencial habilitada. La arquitectura futura podrá contemplar
-dialectos adicionales, pero PostgreSQL y SQL Server no están soportados actualmente.
+WideWorldImporters sobre SQL Server es ahora la base de referencia para la integración
+del proyecto. El entorno local utiliza Windows Authentication mediante Microsoft ODBC
+Driver for SQL Server. `TrustServerCertificate=true` es exclusivo de desarrollo local y
+no representa una política TLS para producción.
 
-Ejecute `python scripts/create_database.py` para crear `data/business_demo.sqlite`.
-El comando no reemplaza una base existente; use `--force` para regenerarla, o `--path`
-para elegir otra ubicación.
+El generador SQLite permanece temporalmente para el dataset sintético, pero no es la
+nueva base de referencia de integración.
+
+Configure `DB_SERVER`, `DB_NAME` y `DB_DRIVER` en `.env`, tomando `.env.example` como
+guía, y ejecute `python scripts/check_database.py` para verificar la conexión.
 
 ## Dominios y tablas
 
