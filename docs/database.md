@@ -4,6 +4,10 @@ WideWorldImporters sobre Microsoft SQL Server es la base de referencia actual de
 proyecto. El desarrollo local utiliza Windows Authentication mediante un SQL Server ODBC
 Driver configurable; los valores de ejemplo se encuentran en `.env.example`.
 
+El objetivo experimental, las condiciones de text-to-SQL y el roadmap se describen en
+[experiment-plan.md](experiment-plan.md). La vista conceptual de esas condiciones está en
+[architecture.md](architecture.md).
+
 Configure `DB_SERVER`, `DB_NAME`, `DB_DRIVER` y la política TLS apropiada para su entorno
 en `.env`. `TrustServerCertificate=true` se contempla únicamente para desarrollo local.
 Ejecute `python scripts/check_database.py` para comprobar conectividad y mostrar la

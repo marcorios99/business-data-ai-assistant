@@ -1,27 +1,24 @@
 # Business Data AI Assistant
 
-Clean project skeleton for a local semantic analytics engine.
+An experimental text-to-SQL project investigating how much **structured semantic grounding** improves analytical SQL accuracy for small local language models.
 
-## Core idea
+The reference environment is **WideWorldImporters** on **Microsoft SQL Server**. The initial model is **Qwen 3.5 4B**, run locally with Ollama. **Wren** and its MDL semantic layer are candidates to be validated through a proof of concept; they are not integrated or validated yet.
 
-The local LLM interprets a business question into a constrained semantic intent. It does not receive the whole database schema and it does not generate arbitrary SQL. The application selects the relevant semantic domain, validates the intent, plans the query, and generates SQL deterministically.
+## Experimental direction
 
-SQLite is the reference implementation so the demo can be reproduced without installing a database server. The architecture keeps database inspection and SQL dialect concerns isolated so PostgreSQL, SQL Server, or other relational engines can be added later through dedicated adapters.
+The project will compare progressively richer context for the same business questions:
 
-## Planned flow
+- raw physical schema;
+- scoped schema relevant to the question;
+- a semantic layer (potentially Wren/MDL);
+- semantic layer plus verified examples or knowledge.
 
-```text
-User question
-    -> domain routing
-    -> local LLM interpretation
-    -> structured semantic intent
-    -> semantic validation
-    -> query planner
-    -> SQL dialect
-    -> repository
-    -> SQLite
-```
+The goal is result correctness, not merely executable SQL. A small, manually verified benchmark of business questions will support the evaluation.
 
-## Project status
+## Current status
 
-This ZIP intentionally contains architecture only. Business logic, SQL schema, dataset generation, semantic definitions, and UI will be implemented incrementally.
+Hito 2A is complete: WideWorldImporters has been restored locally and connectivity through SQLAlchemy + pyodbc with Windows Authentication has been validated. The next step is a minimal Wren proof of concept for Sales.
+
+The previous synthetic SQLite generator remains temporarily in the repository as a historical prototype; it is no longer the reference dataset.
+
+For the research question, methodology, roadmap, and scope, see the [experiment plan](docs/experiment-plan.md). See also the [architecture](docs/architecture.md) and [database setup](docs/database.md).

@@ -1,5 +1,7 @@
 # Dataset sintético
 
+> **Legacy synthetic dataset:** this document describes the former SQLite prototype, not the current reference dataset. The project now uses WideWorldImporters on Microsoft SQL Server for text-to-SQL experiments. The generator remains temporarily as a historical artifact.
+
 El generador crea datos empresariales sintéticos para la compañía ficticia de retail y
 distribución. No representa clientes, proveedores ni transacciones reales.
 

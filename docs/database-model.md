@@ -1,18 +1,11 @@
-# Planned Business Dataset
+# Database Model
 
-The reference dataset will model a fictitious retail/distribution company.
+## Reference dataset
 
-Planned domains and tables:
+The current reference dataset is **WideWorldImporters** on **Microsoft SQL Server**. It is used to evaluate text-to-SQL without artificially adapting a database to the problem. Connection details and local setup are documented in [database.md](database.md).
 
-- Organization: stores, warehouses, employees
-- Catalog: categories, brands, products
-- Suppliers: suppliers, supplier_products
-- Customers: customer_segments, customers
-- Sales: sales_orders, sales_order_items, payments
-- Promotions: promotions, promotion_products
-- Returns: returns, return_items
-- Procurement: purchase_orders, purchase_order_items
-- Inventory: inventory, inventory_movements
-- Management: sales_targets
+## Legacy Synthetic Dataset
 
-Total planned tables: 22.
+The synthetic SQLite dataset was the initial project prototype. It enabled validation of deterministic SQL generation and business relationships for a fictitious retail/distribution company.
+
+It is no longer the reference dataset or the intended future model. WideWorldImporters replaced it so the experiments can work with an existing business database rather than one tailored to a custom architecture. Historical generator code remains temporarily in the repository. Its detailed 22-table description is retained in [dataset.md](dataset.md).
